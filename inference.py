@@ -6,7 +6,7 @@ import time
 cls="<|im_start|>"
 sep="<|im_end|>"
 
-TRANSFORMERS_DIR = "C:/Users/levic/.cache/huggingface/hub/"
+TRANSFORMERS_DIR = "C:/Users/*/.cache/huggingface/hub/"
 model2 = "models--Qwen--Qwen3.6-27B/snapshots/6a9e13bd6fc8f0983b9b99948120bc37f49c13e9"
 
 print(f"CUDA available: {torch.cuda.is_available()}")
