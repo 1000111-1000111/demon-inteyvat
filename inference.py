@@ -48,7 +48,7 @@ def useTool(callStr):
     pattern=r"(\w+)\((.*)\)"
     result=re.search(pattern,callStr)
     if not result:
-        return "TOOL CALL ERROR"
+        return "FAILED TO IDENTIFY TOOL CALL"
     tool=result.group(1)
     args=result.group(2)
     # print("------PARSED TOOL CALL------\nTool: "+tool+"\nArgs: "+args+"\n------------------------------")
