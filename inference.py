@@ -1,12 +1,13 @@
-import sys,re,tools,json
+import sys,re,tools,json,constants
 import torch
 from transformers import FineGrainedFP8Config, AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 import time
 
+
 cls="<|im_start|>"
 sep="<|im_end|>"
 
-TRANSFORMERS_DIR = "C:/Users/*/.cache/huggingface/hub/"
+
 model2 = "models--Qwen--Qwen3.6-27B/snapshots/6a9e13bd6fc8f0983b9b99948120bc37f49c13e9"
 
 print(f"CUDA available: {torch.cuda.is_available()}")
@@ -14,7 +15,7 @@ print(f"CUDA available: {torch.cuda.is_available()}")
 quantization_config = FineGrainedFP8Config()
 
 tokenizer = AutoTokenizer.from_pretrained(
-    TRANSFORMERS_DIR+model2
+    constants.TRANSFORMERS_DIR+model2
 )
 
 print("special_tokens",tokenizer.special_tokens_map)
@@ -34,12 +35,13 @@ print("special_tokens",tokenizer.special_tokens_map)
 
 
 model = AutoModelForCausalLM.from_pretrained(
-    TRANSFORMERS_DIR+model2,
-    device_map="auto",
-    dtype=torch.float8_e4m3fn,
+    constants.TRANSFORMERS_DIR+model2,
+    device_map="cuda",
+    dtype=torch.bfloat16,
     quantization_config=quantization_config,
 
 )
+model=torch.compile(model)
 
 def useTool(callStr):
     # print("\n------DETECTED TOOL CALL------\n"+callStr+"\n------------------------------")
@@ -59,20 +61,25 @@ def useTool(callStr):
     return "TOOL NOT FOUND"
 
 
-LISTENTOOL=False
-TOOLCALL=""
+
 def generate_response(model, tokenizer, prompt, max_new_tokens:int=100, top_k:int=50, temp:float=0):
-    global LISTENTOOL,TOOLCALL
+    LISTENTOOL = False
+    TOOLCALL = ""
+    calculated=None
+
     model.eval()
     device = "cuda" if torch.cuda.is_available() else "cpu"
     input_ids = tokenizer(prompt, return_tensors="pt").input_ids.to(device)
 
     for _ in range(max_new_tokens):
         with torch.no_grad():
-            outputs = model(input_ids).logits
+            outputs = model(input_ids,use_ache=True, past_key_values=calculated)
+
+            calculated=outputs.past_key_values
+
+            outputs=outputs.logits
             next_token_logits = outputs[:, -1, :]
 
-            # next_token_id = torch.argmax(next_token_logits, dim=-1, keepdim=True)
 
             if temp > 0:
                 values, indices = torch.topk(next_token_logits, k=top_k, dim=-1)
@@ -83,7 +90,8 @@ def generate_response(model, tokenizer, prompt, max_new_tokens:int=100, top_k:in
                 next_token_id = torch.argmax(next_token_logits, dim=-1, keepdim=True)
 
 
-        input_ids = torch.cat([input_ids, next_token_id], dim=-1)
+        #input_ids = torch.cat([input_ids, next_token_id], dim=-1)
+        input_ids = next_token_id
 
 
 
@@ -104,8 +112,8 @@ def generate_response(model, tokenizer, prompt, max_new_tokens:int=100, top_k:in
             yield token_str
 
         if next_token_id.item() == tokenizer.eos_token_id:
-            print("\nEND OF RESPONSE")
-            print(tokenizer.decode(input_ids, skip_special_tokens=False))
+           # print("\nEND OF RESPONSE")
+            # print(tokenizer.decode(input_ids, skip_special_tokens=False))
             break
 
 
@@ -272,7 +280,7 @@ def generate_response(model, tokenizer, prompt, max_new_tokens:int=100, top_k:in
 def readManual():
     with open("Manual.md","r",encoding="utf-8") as f:
         return f.read()
-text=cls+f"system\n{readManual()}\nUse any tools as needed.\nuser: Post an article that suits the theme of the website. Read existing articles to guide you on the theme. Aim for at least 100 characters but no more than 1000 characters.废话少说！\nassistant\n<think>\n\n</think>\n\n"
+text=cls+f"system\n{readManual()}\nUse any tools as needed.\nuser: Post an article that suits the theme of the website. Read existing articles to guide you on the theme. Write a length similar to existing articles but no more than 2000 words.废话少说！建议非理性过度解读！\nassistant\n<think>\n\n</think>\n\n"
 # print(text)
 
 # 逐token打印

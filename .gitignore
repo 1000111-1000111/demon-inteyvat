@@ -1,0 +1,10 @@
+constants.py
+index1.py
+markitdown/
+train-data/
+__pycache__/
+venv/
+.idea
+/.gitignore
+.DS_Store
+/.git
