@@ -10,7 +10,7 @@ sep="<|im_end|>"
 
 model2 = "models--Qwen--Qwen3.6-27B/snapshots/6a9e13bd6fc8f0983b9b99948120bc37f49c13e9"
 
-print(f"CUDA available: {torch.cuda.is_available()}")
+print(f"\33[38;2;0;0;255mCUDA available: {torch.cuda.is_available()}\033[0m")
 
 quantization_config = FineGrainedFP8Config()
 
@@ -18,8 +18,7 @@ tokenizer = AutoTokenizer.from_pretrained(
     constants.TRANSFORMERS_DIR+model2
 )
 
-print("special_tokens",tokenizer.special_tokens_map)
-
+# print("special_tokens",tokenizer.special_tokens_map)
 
 """
 {'eos_token': '<|im_end|>', 
@@ -41,7 +40,13 @@ model = AutoModelForCausalLM.from_pretrained(
     quantization_config=quantization_config,
 
 )
-model=torch.compile(model)
+
+print("\033[38;2;153;153;255mCOMPILING MODEL\033[0m")
+# model=torch.compile(model)
+# with torch.no_grad():
+#     model.eval()
+#    model(tokenizer.encode("system\nIntroduce yourself\nassistant\n<think>",return_tensors="pt").to("cuda"))
+print("\033[38;2;153;153;255mMODEL COMPILED\033[0m")
 
 def useTool(callStr):
     # print("\n------DETECTED TOOL CALL------\n"+callStr+"\n------------------------------")
@@ -112,7 +117,7 @@ def generate_response(model, tokenizer, prompt, max_new_tokens:int=100, top_k:in
             yield token_str
 
         if next_token_id.item() == tokenizer.eos_token_id:
-           # print("\nEND OF RESPONSE")
+            # print("\nEND OF RESPONSE")
             # print(tokenizer.decode(input_ids, skip_special_tokens=False))
             break
 
@@ -280,10 +285,11 @@ def generate_response(model, tokenizer, prompt, max_new_tokens:int=100, top_k:in
 def readManual():
     with open("Manual.md","r",encoding="utf-8") as f:
         return f.read()
-text=cls+f"system\n{readManual()}\nUse any tools as needed.\nuser: Post an article that suits the theme of the website. Read existing articles to guide you on the theme. Write a length similar to existing articles but no more than 2000 words.废话少说！建议非理性过度解读！\nassistant\n<think>\n\n</think>\n\n"
-# print(text)
 
-# 逐token打印
-for token in generate_response(model, tokenizer, text, 50000000, temp=0.7):
-    print(token, end="", flush=True)
-print()  # 换行
+
+if __name__=="__main__":
+    text=cls+f"system\n{readManual()}\nUse any tools as needed.\nuser: Post an article that suits the theme of the website. Read existing articles to guide you on the theme. Write a length similar to existing articles but no more than 2000 words.废话少说！建议非理性过度解读！\nassistant\n<think>\n\n</think>\n\n"
+
+    for token in generate_response(model, tokenizer, text, 50000000, temp=0.7):
+        print(token, end="", flush=True)
+    print()
